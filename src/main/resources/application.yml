@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 123456
+    url: jdbc:mysql://localhost:3306/tcms_manage?useUnicode=true&useSSL=false&characterEncoding=utf8&allowMultiQueries=true
+#    schema: classpath:db/schema.sql
+mybatis:
+  mapper-locations: classpath:mapping/**/*Mapper.xml
+  type-aliases-package: com.reige.developer.module
+
+#showSql
+logging:
+  level:
+    com:
+      reige:
+        developer: debug

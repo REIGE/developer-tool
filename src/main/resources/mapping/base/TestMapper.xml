@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.reige.developer.module.base.mapper.TestMapper">
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, parent_id, parent_type, file_type, path, name, size, suffix, create_by, type, taxis, create_time
+    </sql>
+
+    <select id="select" resultType="com.reige.developer.module.base.pojo.Test">
+        select * from base_menu
+    </select>
+</mapper>

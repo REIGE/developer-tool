@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+    url: jdbc:h2:file:./data/sample
+#    schema: classpath:db/schema.sql
+  h2:
+    console:
+      path: /h2-console
+      enabled: true
+      settings:
+        web-allow-others: true
+mybatis:
+  mapper-locations: classpath:mapping/**/*Mapper.xml
+  type-aliases-package: com.reige.developer.module
+
+#showSql
+logging:
+  level:
+    com:
+      reige:
+        developer: debug
