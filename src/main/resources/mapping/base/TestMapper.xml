@@ -10,4 +10,7 @@
     <select id="select" resultType="com.reige.developer.module.base.pojo.Test">
         select * from base_menu
     </select>
+    <select id="page" resultType="map">
+        select * from tcms_material_job_log
+    </select>
 </mapper>

@@ -1,5 +1,6 @@
 package com.reige.developer.config;
 
+import com.reige.developer.common.mybatis.PaginationInterceptor;
 import com.reige.developer.common.mybatis.PerformanceInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +17,14 @@ public class MybatisPlus {
     @Bean
     public PerformanceInterceptor performanceInterceptor(){
         return new PerformanceInterceptor();
+    }
+
+    /**
+     * mybatis 分页插件
+     */
+    @Bean
+    public PaginationInterceptor paginationInterceptor(){
+        return new PaginationInterceptor();
     }
 
 }
