@@ -7,12 +7,15 @@ import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.SystemMetaObject;
+import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
+import org.apache.tomcat.util.ExceptionUtils;
 
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
 
 /**
  * <p>
@@ -63,12 +66,21 @@ public class PaginationInterceptor implements Interceptor {
         //每页条数
         long pageSize = page.getSize();
 
+
+        Connection connection = (Connection) invocation.getArgs()[0];
+
         //管理参数的handler
         ParameterHandler parameterHandler = (ParameterHandler) metaObject.getValue("delegate.parameterHandler");
         //获取请求时的参数，这里我们查询sql使用的是map来封装查询参数，当然，优雅一点我们可以创建一个对象来封装。
 
         //原始sql
         String originalSql = statementHandler.getBoundSql().getSql().trim();
+        String countSql = String.format(Locale.ENGLISH, "select count(*) from (%s) total", originalSql);
+        long total = selectTotal(countSql, mappedStatement, connection, boundSql);
+        page.setTotal(total);
+        System.out.println("--------------------------------------------------");
+        System.out.println("---------------------total:"+total+"--------------------");
+        System.out.println("--------------------------------------------------");
         System.out.println("获取原始sql:" + originalSql);
         if (originalSql.endsWith(";")) {
             //去掉原始sql末尾的分号，以便我们对其进行拼接。
@@ -111,5 +123,26 @@ public class PaginationInterceptor implements Interceptor {
             }
         }
         return Optional.empty();
+    }
+
+    public static <T> T realTarget(Object target) {
+        if (Proxy.isProxyClass(target.getClass())) {
+            MetaObject metaObject = SystemMetaObject.forObject(target);
+            return realTarget(metaObject.getValue("h.target"));
+        }
+        return (T) target;
+    }
+
+    private long selectTotal(String countSql, MappedStatement mappedStatement, Connection connection, BoundSql boundSql) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(countSql);
+        DefaultParameterHandler parameterHandler = new DefaultParameterHandler(mappedStatement, boundSql.getParameterObject(), boundSql);
+        parameterHandler.setParameters(statement);
+        long total = 0;
+        try (ResultSet resultSet = statement.executeQuery()) {
+            if (resultSet.next()) {
+                total = resultSet.getLong(1);
+            }
+        }
+        return total;
     }
 }
