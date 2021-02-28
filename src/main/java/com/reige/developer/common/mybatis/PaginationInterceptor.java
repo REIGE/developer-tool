@@ -1,13 +1,21 @@
 package com.reige.developer.common.mybatis;
 
+import freemarker.template.utility.CollectionUtils;
+import org.apache.ibatis.cache.CacheKey;
+import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.executor.parameter.ParameterHandler;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.mapping.ParameterMapping;
+import org.apache.ibatis.mapping.ResultMap;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.SystemMetaObject;
 import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
+import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
 import org.apache.tomcat.util.ExceptionUtils;
 
 import java.lang.reflect.Proxy;
@@ -16,6 +24,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>
@@ -79,7 +88,7 @@ public class PaginationInterceptor implements Interceptor {
         long total = selectTotal(countSql, mappedStatement, connection, boundSql);
         page.setTotal(total);
         System.out.println("--------------------------------------------------");
-        System.out.println("---------------------total:"+total+"--------------------");
+        System.out.println("---------------------total:" + total + "--------------------");
         System.out.println("--------------------------------------------------");
         System.out.println("获取原始sql:" + originalSql);
         if (originalSql.endsWith(";")) {

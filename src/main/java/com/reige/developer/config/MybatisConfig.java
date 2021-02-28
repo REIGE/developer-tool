@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * @date 2018/12/2.
  */
 @Configuration
-public class MybatisPlus {
+public class MybatisConfig {
     /**
      * 性能分析拦截器，不建议生产使用
      */

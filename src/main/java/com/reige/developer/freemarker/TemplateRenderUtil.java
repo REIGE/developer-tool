@@ -18,7 +18,7 @@ public class TemplateRenderUtil {
      * @param model
      * @return
      */
-    private static String generateHtml(String template, Map model) {
+    public static String generateHtml(String template, Map model) {
         // 定义配置类
         Configuration configuration = new Configuration(Configuration.getVersion());
         // 使用模板加载器变为模板
