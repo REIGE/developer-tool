@@ -24,7 +24,7 @@ public class MybatisConfig {
      */
     @Bean
     public PaginationInterceptor paginationInterceptor(){
-        return new PaginationInterceptor();
+        return new PaginationInterceptor(100);
     }
 
 }
