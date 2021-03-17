@@ -1,11 +1,16 @@
 package com.reige.developer.common.mybatis;
 
+import org.apache.ibatis.cache.CacheKey;
+import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.plugin.*;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.SystemMetaObject;
 import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
+import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
 
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
@@ -21,7 +26,10 @@ import java.util.*;
  *
  * @since 2021-1-24
  */
-@Intercepts(@Signature(method = "prepare", type = StatementHandler.class, args = {Connection.class, Integer.class}))
+@Intercepts({
+        @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
+        @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class, CacheKey.class, BoundSql.class})
+})
 public class PaginationInterceptor implements Interceptor {
     public static final String SEMICOLON = ";";
 
@@ -58,9 +66,9 @@ public class PaginationInterceptor implements Interceptor {
         // 获取原始sql
         String originalSql = getOriginalSql(statementHandler);
         // 获取count sql
-        String countSql = buildCountSql(originalSql);
+        String countSqlStr = buildCountSql(originalSql);
         // 查询total
-        long total = selectTotal(countSql, connection, mappedStatement, boundSql);
+        long total = selectTotal(countSqlStr, connection, mappedStatement, boundSql);
         page.setTotal(total);
 
         System.out.println("获取page:" + page);
@@ -70,6 +78,61 @@ public class PaginationInterceptor implements Interceptor {
         //将拼装后的sql复制给BoundSQL
         metaObject.setValue("delegate.boundSql.sql", limitSql);
         //最后将处理权限返回给mybatis，让它继续执行。
+
+
+        Object target = invocation.getTarget();
+        Object[] args = invocation.getArgs();
+        final Executor executor = (Executor) target;
+        Object parameter = args[1];
+        MappedStatement ms = (MappedStatement) args[0];
+        if (ms.getSqlCommandType() == SqlCommandType.SELECT) {
+            RowBounds rowBounds = (RowBounds) args[2];
+            ResultHandler resultHandler = (ResultHandler) args[3];
+            BoundSql boundSql = null;
+            if (args.length == 4) {
+                boundSql = ms.getBoundSql(parameter);
+            } else {
+                // 几乎不可能走进这里面,除非使用Executor的代理对象调用query[args[6]]
+                boundSql = (BoundSql) args[5];
+            }
+
+            if (!query.willDoQuery(executor, ms, parameter, rowBounds, resultHandler, boundSql)) {
+                return Collections.emptyList();
+            }
+
+            final String countId = ms.getId() + "_pagination_count";
+            final Configuration configuration = ms.getConfiguration();
+
+            MappedStatement.Builder builder = new MappedStatement.Builder(configuration, countId, ms.getSqlSource(), ms.getSqlCommandType());
+            builder.resource(ms.getResource());
+            builder.fetchSize(ms.getFetchSize());
+            builder.statementType(ms.getStatementType());
+            builder.timeout(ms.getTimeout());
+            builder.parameterMap(ms.getParameterMap());
+            builder.resultMaps(Collections.singletonList(new ResultMap.Builder(configuration, "count_id", Long.class, Collections.emptyList()).build()));
+            builder.resultSetType(ms.getResultSetType());
+            builder.cache(ms.getCache());
+            builder.flushCacheRequired(ms.isFlushCacheRequired());
+            builder.useCache(ms.isUseCache());
+            MappedStatement countMs = builder.build();
+
+            MetaObject boundSqlMo = SystemMetaObject.forObject(boundSql);
+            List<ParameterMapping> mappings = boundSql.getParameterMappings();
+
+            final Map<String, Object> additionalParameter = (Map<String, Object>) boundSqlMo.getValue("additionalParameters");
+            boundSqlMo.setValue("parameterMappings", mappings);
+            BoundSql countSql = new BoundSql(countMs.getConfiguration(), countSqlStr, mappings, parameter);
+
+
+            CacheKey cacheKeyCount = executor.createCacheKey(countMs, parameter, rowBounds, countSql);
+            Object result = executor.query(countMs, parameter, rowBounds, resultHandler, cacheKeyCount, countSql).get(0);
+            page.setTotal(result == null ? 0L : Long.parseLong(result.toString()));
+
+            boundSqlMo.setValue("sql", limitSql);
+            boundSqlMo.setValue("parameterMappings", mappings);
+            CacheKey cacheKey = executor.createCacheKey(ms, parameter, rowBounds, boundSql);
+            return executor.query(ms, parameter, rowBounds, resultHandler, cacheKey, boundSql);
+        }
         return invocation.proceed();
     }
 
@@ -95,15 +158,7 @@ public class PaginationInterceptor implements Interceptor {
 
     @Override
     public Object plugin(Object target) {
-        if (target instanceof StatementHandler) {
-            return Plugin.wrap(target, this);
-        }
-        return target;
-    }
-
-    @Override
-    public void setProperties(Properties properties) {
-
+        return Plugin.wrap(target, this);
     }
 
     private Optional<Page> getPage(Object parameterObject) {
